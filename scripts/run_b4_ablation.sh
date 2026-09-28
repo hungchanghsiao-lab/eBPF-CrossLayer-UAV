@@ -24,6 +24,9 @@ int b4_xdp_scheduler(struct xdp_md *ctx) {
     
     // IP 協定 17 為 UDP。但在 XDP 層，後續分片無法解析出 UDP 標頭，導致過濾失效！
     if (ip->protocol != 17) return XDP_PASS; 
+    // 如果是後續的 IP 碎片 (offset > 0)
+    // XDP 無法解析其 L4 標頭，只能被迫放行 (漏接進 OS 核心！)
+    if (ip->frag_off & bpf_htons(0x1FFF)) return XDP_PASS;
 
     int key_delay = 0, key_limit = 1;
     u64 *k_evt = cross_layer_params.lookup(&key_limit);
