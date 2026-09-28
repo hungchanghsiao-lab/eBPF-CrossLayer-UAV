@@ -26,8 +26,8 @@ int tc_scheduler(struct __sk_buff *skb) {
     if (!k_evt || !k_rho || !current_delay) return TC_ACT_OK;
 
     // 🚀 核心邏輯：物理否決權 (Collision Saturation Veto)
-    // 當 rho >= 100 (對應 1.0) 時，代表碰撞風險飽和，強制放行所有封包！
-    if (*k_rho >= 100) {
+    // 當 rho >= 120 (對應 1.2) 時，代表碰撞風險飽和，強制放行所有封包！
+    if (*k_rho >= 120) {
         return TC_ACT_OK; 
     }
 
