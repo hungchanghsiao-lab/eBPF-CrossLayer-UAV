@@ -11,7 +11,8 @@ int b4_xdp_scheduler(struct xdp_md *ctx) {
     if (eth->h_proto != bpf_htons(ETH_P_IP)) return XDP_PASS;
     struct iphdr *ip = (void *)(eth + 1);
     if ((void *)(ip + 1) > data_end) return XDP_PASS;
-    if (ip->protocol != 17) return XDP_PASS; 
+    if (ip->protocol != 17) return XDP_PASS;
+    if (ip->frag_off & bpf_htons(0x1FFF)) return XDP_PASS;
     int key_delay = 0, key_limit = 1;
     u64 *k_evt = cross_layer_params.lookup(&key_limit);
     u64 *current_delay = mock_delay_map.lookup(&key_delay);
