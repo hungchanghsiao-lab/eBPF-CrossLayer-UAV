@@ -47,9 +47,9 @@ int cross_layer_scheduler(struct __sk_buff *skb) {
     // ---------------------------------------------------------
     // 論文 S4.1: Stage 2 絕對物理否決權 (Absolute Physical Veto)
     // ---------------------------------------------------------
-    if (*rho >= 100) {
-        // rho >= 1.0 代表瀕臨撞機，觸發物理否決，強制等待 (Pass)
-        // bpf_trace_printk("VETO: rho >= 1.0! Force waiting.\n");
+    if (*rho >= 120) {
+        // rho >= 1.2 代表瀕臨撞機，觸發物理否決，強制等待 (Pass)
+        // bpf_trace_printk("VETO: rho >= 1.2! Force waiting.\n");
         return TC_ACT_OK; 
     }
 

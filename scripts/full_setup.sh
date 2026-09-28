@@ -18,7 +18,7 @@ cat << 'INNER_EOF' > package.xml
   <name>cross_layer_test</name>
   <version>0.0.1</version>
   <description>Hybrid Evaluation Testbed</description>
-  <maintainer email="hchsiao@csie.ncku.edu.tw">HC Hsiao</maintainer>
+  <maintainer email="anonymous@example.com">Anonymous</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>rclcpp</depend>
