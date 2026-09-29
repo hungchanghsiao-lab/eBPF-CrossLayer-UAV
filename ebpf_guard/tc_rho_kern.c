@@ -32,6 +32,10 @@ int tc_scheduler(struct __sk_buff *skb) {
 
     u64 delay_scaled = (*current_delay) << 16; 
     if (delay_scaled > *k_evt) {
+        // [Implementation Note]: As per the PoC scope defined in README, 
+        // the forging of vendor-specific RTPS GAP tokens (Algorithm 1) 
+        // is omitted here to benchmark the pure ALU scheduling overhead.
+        // We execute a fundamental TC_ACT_SHOT to evaluate the theoretical truncation boundary.
         return TC_ACT_SHOT; // Early Drop
     }
     return TC_ACT_OK;
