@@ -62,7 +62,7 @@ ax.axvline(x=EVT_LIMIT_MS, color='black', linestyle='--', linewidth=1.5, label=f
 # 座標軸與網格設定
 ax.set_xlabel('End-to-End Latency (ms)', fontweight='bold')
 ax.set_ylabel('Cumulative Probability (CDF)', fontweight='bold')
-ax.set_xlim(0, max(15, s_b1.max() * 1.1))
+ax.set_xlim(0, 15)
 ax.set_ylim(0, 1.05)
 ax.set_title('Tail Latency Mitigation via eBPF Cross-Layer Scheduling', fontweight='bold')
 ax.grid(True, linestyle=':', alpha=0.7)
@@ -84,4 +84,4 @@ ax.annotate('Saturation Veto:\nForced Release',
 plt.tight_layout()
 output_filename = 'fig_e_cross_layer_veto.pdf'
 fig.savefig(output_filename, format='pdf', bbox_inches='tight')
-print(f"✅ 終極對照圖繪製完畢！檔案已儲存為 {output_filename}")
+print(f"✅ 對照圖繪製完畢！檔案已儲存為 {output_filename}")
