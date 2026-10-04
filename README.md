@@ -7,7 +7,7 @@ This repository contains the reproducibility artifacts for the eBPF-based cross-
 This repository is organized into two main experimental phases, strictly corresponding to the hybrid evaluation methodology presented in the paper:
 
 ### 1. Large-Scale Algorithmic Simulation (Exp 1 & 2)
-* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss, and parameter sensitivity. This script reproduces the macroscopic availability and microscopic trajectory results (Fig 4, 5, 6, 7, and 8).
+* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss, and parameter sensitivity. This script reproduces the macroscopic availability and microscopic trajectory results (Fig 5, 6, 7, 8, and 9).
 
 ### 2. Cloud System Emulation Testbed (Exp 3 & 4)
 * **`ebpf_kernel/`**: The core eBPF scheduler. Includes the LLVM-compiled kernel-space C code (`tc_rho_kern.c`) implementing the $\mathcal{O}(1)$ EVT boundary and Force Release logic, along with the Python BCC loader.
