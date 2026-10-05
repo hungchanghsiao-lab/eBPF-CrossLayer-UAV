@@ -74,11 +74,15 @@ python3 master_cdf_plot.py
 ```
 *(This will output `fig_e_cross_layer_veto.pdf`, illustrating the precise $\mathcal{O}(1)$ perfect intercept and the robust long-tail trajectory of the physical veto mechanism).*
 
-## ⚠️ Implementation Notes & Proof-of-Concept (PoC) Scope
+⚠️ Implementation Notes & Proof-of-Concept (PoC) Scope
 
-To ensure strict scientific variable isolation and reproducible benchmarking on cloud environments (GCP), the provided source code represents a Proof-of-Concept (PoC) of the core $\mathcal{O}(1)$ EVT scheduling logic:
-*   **Mock Delays via BPF Maps:** Due to the lack of PTP hardware clock synchronization in GCP virtual NICs, calculating true one-way latency via `bpf_ktime_get_ns()` is substituted with asynchronous mock injections (`mock_delay_map`) to purely benchmark the ALU-constrained arithmetic overhead without clock drift noise.
-*   **GAP Token Injection Omission:** Algorithm 1 in the paper describes forging an RTPS GAP token to maintain state machine monotonicity. As this requires complex header rewriting tightly coupled with specific DDS vendor layouts, this PoC currently executes the fundamental `TC_ACT_SHOT` interception to evaluate the theoretical baseline overhead. Deep Packet Inspection (DPI) is similarly bypassed to maximize wire-speed performance in this benchmark.
+To ensure strict scientific variable isolation and reproducible benchmarking on cloud environments (GCP), the provided source code represents a Proof-of-Concept (PoC) focused exclusively on the core O(1) EVT scheduling logic. 
+
+Please note the following architectural simplifications made for this micro-benchmark:
+
+* **Mock Delays via BPF Maps:** Due to the lack of PTP hardware clock synchronization in GCP virtual NICs, calculating true one-way latency via `bpf_ktime_get_ns()` is substituted with asynchronous mock injections (`mock_delay_map`). This isolates the pure ALU-constrained arithmetic overhead from environmental clock drift noise.
+* **GAP Token Injection & Checksum Updates Omission:** Algorithm 1 in the paper describes forging an RTPS GAP token to maintain state machine monotonicity. As this requires complex header rewriting tightly coupled with specific DDS vendor layouts, along with incremental checksum updates (via `bpf_l4_csum_replace`), they are omitted in this PoC. We execute the fundamental `TC_ACT_SHOT` interception to evaluate the theoretical baseline overhead. Deep Packet Inspection (DPI) is similarly bypassed to maximize wire-speed performance in this benchmark.
+* **LRU Map Fragmentation Tracking Isolation:** The stateful fragment tracking mechanism utilizing `BPF_MAP_TYPE_LRU_HASH`—designed to robustly handle IP fragment dispersion for jumbo payloads—is a structural necessity for production. However, to accurately profile the standalone single-packet mathematical decision latency of our fixed-point EVT model, the multi-packet LRU correlation logic is isolated from this specific benchmarking source code.
 
 ## License
 This project is licensed under the Apache License 2.0.
