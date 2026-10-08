@@ -1,6 +1,7 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/ip.h>
+#include <uapi/linux/udp.h>
 
 BPF_ARRAY(cross_layer_params, u64, 2);
 BPF_ARRAY(mock_delay_map, u64, 1);
@@ -15,11 +16,18 @@ int b4_xdp_scheduler(struct xdp_md *ctx) {
     
     struct iphdr *ip = (void *)(eth + 1);
     if ((void *)(ip + 1) > data_end) return XDP_PASS;
-    if (ip->protocol != 17) return XDP_PASS;
+    if (ip->protocol != 17) return XDP_PASS; // Only process UDP packets
     
     // IP Fragmentation leak issue: XDP cannot parse subsequent fragments (offset > 0)
     // It is forced to pass them, leaking incomplete packets to the OS reassembly queue
     if (ip->frag_off & bpf_htons(0x1FFF)) return XDP_PASS;
+    
+    // Check UDP header for the first fragment (or unfragmented packets)
+    struct udphdr *udp = (void *)(ip + 1);
+    if ((void *)(udp + 1) <= data_end) {
+        // [Added] Telemetry bypass for hardware micro-benchmark (Port 5006)
+        if (udp->dest == bpf_htons(5006)) return XDP_PASS;
+    }
     
     int key_delay = 0, key_limit = 1;
     u64 *k_evt = cross_layer_params.lookup(&key_limit);
@@ -29,7 +37,7 @@ int b4_xdp_scheduler(struct xdp_md *ctx) {
     
     u64 delay_scaled = (*current_delay) << 16; 
     if (delay_scaled > *k_evt) { 
-        return XDP_DROP; 
+        return XDP_DROP; // Early drop at XDP layer (but fails on fragmented Jumbo frames)
     }
     return XDP_PASS;
 }
