@@ -1,108 +1,80 @@
-# eBPF-CrossLayer-UAV
+# Cross-Layer eBPF Scheduler for Cyber-Physical Systems
 
-This repository contains the reproducibility artifacts for the eBPF-based cross-layer QoS scheduling framework designed for ROS 2 UAV swarms. It evaluates the system's resilience against extreme network Incast storms using Extreme Value Theory (EVT) and a dynamic "Saturation Veto" ($\rho \ge 1.0$) mechanism.
+This repository contains the system implementation and reproducibility artifacts for our $\mathcal{O}(1)$ cross-layer scheduling framework, designed for ROS 2 UAV swarms. It utilizes Linux Traffic Control (TC) and the extended Berkeley Packet Filter (eBPF) to mitigate Head-of-Line (HoL) blocking under extreme heavy-tailed network congestion using Extreme Value Theory (EVT) and a dynamic "Physical Veto" ($\rho \ge 1.0$) mechanism.
 
-## Project Structure
+## Directory Structure
 
-This repository is organized into three main experimental phases, strictly corresponding to the hybrid evaluation methodology presented in the paper:
+This repository is organized to strictly correspond with the hybrid evaluation methodology presented in our paper:
 
 ### 1. Large-Scale Algorithmic Simulation (Exp 1 & 2)
-* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss, and parameter sensitivity.
+* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss limits, and parameter sensitivity under macroscopic 500-node swarm conditions.
 
-### 2. Hardware-Agnostic Edge Emulation (ARM64 Micro-Benchmark)
-To rigorously address the hardware constraints of actual UAV companion computers (e.g., Cortex-A72 on Raspberry Pi 4), this repository includes a pure Python-based micro-benchmark.
-* **`ebpf_guard/`**: The core eBPF scheduler. Includes the LLVM-compiled kernel-space C code (`tc_rho_kern.c`) implementing the $\mathcal{O}(1)$ EVT boundary, Out-of-band Telemetry bypass, and Force Release logic, along with the Python BCC loader (`ebpf_tc_loader.py`).
-* **`arm_edge_emulation/`**: Contains lightweight UDP telemetry scripts (`echo_server.py`, `incast_shooter_max.py`, `latency_logger.py`, and `plot_cdf.py`) to validate the wire-speed $\mathcal{O}(1)$ performance on a natively throttled **ARM64 architecture (GCP Tau T2A)** without the overhead of the ROS 2 framework.
+### 2. Core Implementation & Ablation Baselines
+* **`ebpf_guard/`**: The core eBPF scheduler. Includes the LLVM-compiled kernel-space C code (`tc_rho_kern.c`) implementing the $\mathcal{O}(1)$ EVT boundary and Physical Veto logic, along with the Python BCC loader (`ebpf_tc_loader.py`).
+* **`ablation_study/`**: Contains the baseline eBPF implementation attached to the XDP layer (`xdp_b4_kern.c`). It demonstrates the architectural fragmentation leakage issue (B4 Baseline) when handling jumbo payloads below the IP stack.
+* **`ros2_workspace/`**: C++ source code for ROS 2 Fast DDS test nodes (`incast_publisher.cpp`, `ego_subscriber.cpp`) and `CMakeLists.txt`.
 
-### 3. Cloud System Emulation Testbed (Exp 3 & 4)
-* **`ros2_workspace/`**: C++ source code for ROS 2 Fast DDS nodes. Contains the `incast_publisher` (for generating high-frequency point cloud payloads) and `ego_subscriber` (for capturing end-to-end latency).
-* **`ablation_study/`**: Contains alternative eBPF implementations (`xdp_b4_kern.c`) and loaders (`ebpf_xdp_loader.py`) to evaluate architectural baselines such as B4 (XDP Fragment Leakage).
-* **`scripts/`**: Automation shell scripts (`run_cluster_exp.sh`) to orchestrate the 10-node distributed Incast storm experiment on Google Cloud Platform (GCP).
-* **`datasets/`**: Stores pre-collected benchmarking CSV results and the plotting scripts for both ARM edge emulation and GCP macro-emulation.
+### 3. Edge Emulation & Data Analysis (Exp 3 & 4)
+* **`experiments/`**: Automation shell scripts (`run_cluster_b1.sh`, `run_cluster_intercept.sh`, `run_cluster_veto.sh`) to orchestrate the 10-node distributed Synchronized Incast experiment on natively throttled ARM64 edge instances.
+* **`data/`**: Stores the raw end-to-end latency measurements (in ms) gathered during the 1000-packet Incast storms.
+* **`analysis/`**: Contains the Python plotting script (`plot_cdf.py`) to parse the CSV results and generate the CDF log-scale vector graphics.
 
 ## Prerequisites
 
 To fully replicate the experiments, the following environment is required:
 *   **OS**: Ubuntu 22.04 LTS
-*   **Middleware**: ROS 2 Humble (with Fast DDS) for Phase 3
+*   **Middleware**: ROS 2 Humble (with Fast DDS)
 *   **Kernel Tools**: `bpfcc-tools`, `linux-headers-generic`, `clang`, `llvm`, `cpulimit`
-*   **Python Packages**: `scipy`, `bcc`, `pyroute2`, `pandas`, `numpy`, `matplotlib`
-*   **Infrastructure**: 
-    *   Phase 2: An ARM64 instance (e.g., GCP Tau T2A).
-    *   Phase 3: A cluster of 10 x86 nodes (1 Ego-Node, 9 Teammate-Nodes) with SSH/IAP access.
+*   **Python Packages**: `scipy`, `bcc`, `pandas`, `numpy`, `matplotlib`
+*   **Infrastructure**: A cluster of 10 ARM64 instances (e.g., GCP Tau T2A) configured with SSH/IAP access (1 Receiver/Ego-Node, 9 Sender/Teammate-Nodes).
+
+## Empirical Highlights (10-Node ARM64 Edge Emulation)
+
+We empirically validated the scheduler on a 10-node native **ARM64 architecture**. To faithfully replicate resource-constrained IoT Edge limitations, the eBPF scheduler on the receiver is strictly throttled to **50% of a single ARM core** using `cpulimit`. Under a 9-node Incast attack generating continuous 4000 B Jumbo point cloud payloads:
+
+1. **B1 Baseline (Native Fast DDS)**: The OS queue suffers severe deadlock, resulting in a **3.0%** survival rate.
+2. **eBPF Intercept ($\rho \le 1.0$)**: Actively prunes stale jumbo frames strictly at the 0.1 ms EVT cutoff limit, forming an $\mathcal{O}(1)$ Hard Boundary. This clears the queue blockage and increases the payload survival rate to **77.3%**. 
+3. **Physical Veto ($\rho \ge 1.0$)**: Under kinematic critical states, the scheduler dynamically suspends the network stop-loss limit to prioritize critical information flow, yielding an **8.2%** survival rate and mirroring the baseline's queue saturation overhead.
 
 ## Quick Start
 
 ### Phase 1: Large-Scale Algorithmic Simulation
-To execute the mean-field abstraction and generate the algorithmic evaluation plots (Exp 1 & 2):
-```bash
-cd simulation
-python3 mean_field_sim.py
-```
+To execute the mean-field abstraction and generate the macroscopic evaluation plots:
+    cd simulation
+    python3 mean_field_sim.py
 
-### Phase 2: Hardware-Agnostic Edge Emulation (ARM64)
-We empirically validated our $\mathcal{O}(1)$ EVT scheduler on a native **ARM64 architecture**. To faithfully replicate IoT Edge limitations, the eBPF scheduler is strictly throttled to **50% of a single ARM core** using `cpulimit`, while defending against a heavy-tailed Synchronized Incast storm (continuous 4000 B Jumbo Payloads).
+### Phase 2: Edge System Emulation (ARM64 Cluster)
+Navigate to the `experiments/` directory on the Receiver Node (Node-0). Ensure your GCP CLI is authenticated.
 
-#### 📊 Extreme Pressure Evaluation (0.1ms Hard Boundary)
-As shown in the CDF evaluation below, under kinematic safety states ($\rho \le 1.0$), our eBPF mechanism drops stale jumbo frames strictly at the **0.1ms EVT cutoff limit**, creating a perfect vertical asymptote (Perfect Intercept). Furthermore, the leftward shift of the purple curve demonstrates the successful mitigation of Head-of-Line (HoL) blocking, accelerating subsequent packets. Under saturation ($\rho \ge 1.0$), it seamlessly triggers the Physical Veto, falling back to the native queue behavior.
+    cd experiments
 
-#### 🛠️ How to run the Micro-Benchmark
-```bash
-# 1. On Node-0 (Receiver): Start eBPF scheduler with 0.1ms EVT cutoff
-sudo python3 ebpf_guard/ebpf_tc_loader.py --rho 0.8 --limit 0.1 &
-sleep 2
+    # 1. Run the B1 Baseline (Native Fast DDS without eBPF protection)
+    ./run_cluster_b1.sh
+    
+    # 2. Run the eBPF Intercept mechanism (EVT Limit = 0.1ms)
+    ./run_cluster_intercept.sh
+    
+    # 3. Run the Saturation Physical Veto mechanism (Force Release)
+    ./run_cluster_veto.sh
 
-# 2. Throttle the ingress scheduler to 50% CPU limit
-sudo cpulimit -p $! -l 50 &
+### Phase 3: Data Analysis & Visualization
+To parse the empirical CSV results and reproduce the CDF comparison plots:
+    cd analysis
+    pip install numpy matplotlib pandas
+    python3 plot_cdf.py
 
-# 3. Start Telemetry Echo Server
-python3 arm_edge_emulation/echo_server.py
+This script will output the final `arm10_latency_cdf.pdf` visualizing the $\mathcal{O}(1)$ Hard Boundary and the latency shift effects.
 
-# 4. On Node-1 (Sender): Launch Synchronized Incast & Telemetry
-python3 arm_edge_emulation/incast_shooter_max.py &
-python3 arm_edge_emulation/latency_logger.py result.csv
-```
+---
 
-### Phase 3: Cloud System Emulation (ROS 2 Macro-Benchmark)
-#### 1. Build the ROS 2 Workspace
-```bash
-cd ros2_workspace
-source /opt/ros/humble/setup.bash
-colcon build --packages-select cross_layer_test
-```
+## Implementation Notes & Proof-of-Concept (PoC) Scope
 
-#### 2. Execute the Core Incast Storm Experiment (OURS: TC + Saturation Veto)
-Navigate to the `scripts/` directory on the Ego-Node. Ensure your GCP CLI is authenticated and `ROS_DOMAIN_ID` is strictly synchronized across all instances.
-```bash
-cd scripts
-./run_cluster_exp.sh
-```
-This sequentially launches 9 remote ROS 2 publishers, dynamically attaches the eBPF TC hook, and captures latency data under extreme load ($\rho \ge 1.0$).
+To ensure strict scientific variable isolation and reproducible benchmarking on cloud environments, the provided source code represents a Proof-of-Concept (PoC) focused exclusively on measuring the $\mathcal{O}(1)$ computational overhead of the core EVT decision pipeline on ARM64 ALUs. 
 
-#### 3. Execute Baseline Ablation Studies (B1, B2 & B4)
-To compare our cross-layer framework with other architectural baselines, use the built-in ROS 2 parameters and the provided ablation loaders:
-
-```bash
-# Run B1 Baseline: Native Fast DDS (Pure OS Queuing without QoS constraints)
-ros2 run cross_layer_test ego_subscriber --ros-args -p qos_mode:="B1"
-
-# Run B2 Baseline: Pure ROS 2 Application-Layer QoS (50ms Lifespan)
-ros2 run cross_layer_test ego_subscriber --ros-args -p qos_mode:="B2"
-
-# Run B4 Baseline: eBPF attached to XDP (Demonstrating Fragment Leakage)
-# Start the XDP guard in a separate terminal before running the subscriber
-sudo python3 ablation_study/ebpf_xdp_loader.py --limit 0.1 &
-```
-
-⚠️ Implementation Notes & Proof-of-Concept (PoC) Scope
-
-To ensure strict scientific variable isolation and reproducible benchmarking on cloud environments (GCP), the provided source code represents a Proof-of-Concept (PoC) focused exclusively on the core O(1) EVT scheduling logic. 
-
-Please note the following architectural simplifications made for this micro-benchmark:
-
-* **Mock Delays via BPF Maps:** Due to the lack of PTP hardware clock synchronization in GCP virtual NICs, calculating true one-way latency via `bpf_ktime_get_ns()` is substituted with asynchronous mock injections (`mock_delay_map`). This isolates the pure ALU-constrained arithmetic overhead from environmental clock drift noise.
-* **GAP Token Injection & Checksum Updates Omission:** Algorithm 1 in the paper describes forging an RTPS GAP token to maintain state machine monotonicity. As this requires complex header rewriting tightly coupled with specific DDS vendor layouts, along with incremental checksum updates (via `bpf_l4_csum_replace`), they are omitted in this PoC. We execute the fundamental `TC_ACT_SHOT` interception to evaluate the theoretical baseline overhead. Deep Packet Inspection (DPI) is similarly bypassed to maximize wire-speed performance in this benchmark.
-* **LRU Map Fragmentation Tracking Isolation:** The stateful fragment tracking mechanism utilizing `BPF_MAP_TYPE_LRU_HASH`—designed to robustly handle IP fragment dispersion for jumbo payloads—is a structural necessity for production. However, to accurately profile the standalone single-packet mathematical decision latency of our fixed-point EVT model, the multi-packet LRU correlation logic is isolated from this specific benchmarking source code.
+Please note the following architectural simplifications made for this benchmark:
+* **Mock Delays via BPF Maps:** Due to the lack of PTP hardware clock synchronization in standard cloud virtual NICs, calculating true one-way latency via `bpf_ktime_get_ns()` is substituted with asynchronous mock injections (`mock_delay_map`). This isolates the pure ALU-constrained arithmetic overhead from environmental clock drift noise.
+* **GAP Token Injection Omission:** Algorithm 1 in the paper describes forging an RTPS GAP token to maintain state machine monotonicity. Since synthesizing this token requires complex header rewriting and incremental checksum updates (via `bpf_l4_csum_replace`)—which are standard but verbose kernel routines—they are omitted in this PoC to accurately profile the fundamental `TC_ACT_SHOT` interception overhead.
+* **LRU Map Fragmentation Tracking Isolation:** The stateful fragment tracking mechanism utilizing `BPF_MAP_TYPE_LRU_HASH` is a structural necessity for robustly handling IP fragment dispersion. However, to rigorously isolate and profile the standalone single-packet mathematical decision latency of our fixed-point EVT model, the multi-packet LRU correlation logic is separated from this specific benchmarking C source code.
 
 ## License
 This project is licensed under the Apache License 2.0.
