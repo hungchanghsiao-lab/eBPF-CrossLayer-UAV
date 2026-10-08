@@ -3,7 +3,8 @@
 export ROS_DOMAIN_ID=42
 export FASTRTPS_DEFAULT_PROFILES_FILE=~/fastdds_unicast.xml
 sudo pkill -f ebpf_tc_loader.py
-rm -f exp_results_rho_raw.txt exp_results_rho_veto.csv
+# [Fix 3] Ensure the cleaned filename perfectly matches the generated raw filename below
+rm -f exp_results_rho_veto_raw.txt exp_results_rho_veto.csv
 
 echo "[1/3] Launching 9-node Incast storm from teammates..."
 for i in {1..9}; do
@@ -14,7 +15,8 @@ echo "Waiting 10 seconds for ROS 2 underlying discovery and network congestion..
 sleep 10
 
 echo "[2/3] Starting eBPF guard and capturing 20 seconds of data in the storm..."
-sudo ../ebpf_guard/ebpf_tc_loader.py --rho 1.0 &
+# [Fix 1 & 2] Explicitly call python3, set rho=1.2 (to ensure Veto is triggered), and apply 0.1ms cutoff
+sudo python3 ../ebpf_guard/ebpf_tc_loader.py --rho 1.2 --limit 0.1 &
 sleep 2
 
 source ~/ros2_ws/install/setup.bash
