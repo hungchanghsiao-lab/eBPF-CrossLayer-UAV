@@ -7,7 +7,7 @@ This repository contains the reproducibility artifacts for the eBPF-based cross-
 This repository is organized into three main experimental phases, strictly corresponding to the hybrid evaluation methodology presented in the paper:
 
 ### 1. Large-Scale Algorithmic Simulation (Exp 1 & 2)
-* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss, and parameter sensitivity. This script reproduces the macroscopic availability and microscopic trajectory results (Fig 5, 6, 7, 8, and 9).
+* **`simulation/`**: Contains the `mean_field_sim.py` script. It implements the Mean-Field Abstraction to validate the $\mathcal{O}(1)$ EVT scheduling logic, kinematic stop-loss, and parameter sensitivity.
 
 ### 2. Hardware-Agnostic Edge Emulation (ARM64 Micro-Benchmark)
 To rigorously address the hardware constraints of actual UAV companion computers (e.g., Cortex-A72 on Raspberry Pi 4), this repository includes a pure Python-based micro-benchmark.
@@ -39,15 +39,12 @@ To execute the mean-field abstraction and generate the algorithmic evaluation pl
 cd simulation
 python3 mean_field_sim.py
 ```
-*(This will output `fig_a_network_cdf.pdf` through `fig_f_sensitivity.pdf` in the current directory).*
 
 ### Phase 2: Hardware-Agnostic Edge Emulation (ARM64)
 We empirically validated our $\mathcal{O}(1)$ EVT scheduler on a native **ARM64 architecture**. To faithfully replicate IoT Edge limitations, the eBPF scheduler is strictly throttled to **50% of a single ARM core** using `cpulimit`, while defending against a heavy-tailed Synchronized Incast storm (continuous 4000 B Jumbo Payloads).
 
 #### 📊 Extreme Pressure Evaluation (0.1ms Hard Boundary)
 As shown in the CDF evaluation below, under kinematic safety states ($\rho \le 1.0$), our eBPF mechanism drops stale jumbo frames strictly at the **0.1ms EVT cutoff limit**, creating a perfect vertical asymptote (Perfect Intercept). Furthermore, the leftward shift of the purple curve demonstrates the successful mitigation of Head-of-Line (HoL) blocking, accelerating subsequent packets. Under saturation ($\rho \ge 1.0$), it seamlessly triggers the Physical Veto, falling back to the native queue behavior.
-
-![CDF Evaluation](datasets/fig_e_cross_layer_veto_0.1ms_final.png)
 
 #### 🛠️ How to run the Micro-Benchmark
 ```bash
