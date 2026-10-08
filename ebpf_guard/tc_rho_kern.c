@@ -17,13 +17,13 @@ int tc_scheduler(struct __sk_buff *skb) {
     
     struct iphdr *ip = (void *)(eth + 1);
     if ((void *)(ip + 1) > data_end) return TC_ACT_OK;
-    if (ip->protocol != 17) return TC_ACT_OK; // 只處理 UDP
+    if (ip->protocol != 17) return TC_ACT_OK; // Only process UDP packets
     
     struct udphdr *udp = (void *)(ip + 1);
     if ((void *)(udp + 1) > data_end) return TC_ACT_OK;
 
-    // [新增] 針對硬體微型測試 (Micro-benchmark) 的遙測通道
-    // 放行 Port 5006 的探測封包，以純粹測量佇列清空後的真實延遲
+    // [Added] Telemetry bypass for hardware micro-benchmark
+    // Bypass probe packets on Port 5006 to measure pure queue clearance latency
     if (udp->dest == bpf_htons(5006)) return TC_ACT_OK;
     
     int key_delay = 0, key_limit = 1, key_rho = 2;
@@ -41,7 +41,7 @@ int tc_scheduler(struct __sk_buff *skb) {
     // Perfect Intercept: O(1) Hard Boundary
     u64 delay_scaled = (*current_delay) << 16; 
     if (delay_scaled > *k_evt) {
-        return TC_ACT_SHOT; // EVT Cutoff: 丟棄過期封包
+        return TC_ACT_SHOT; // EVT Cutoff: Drop stale packets
     }
     return TC_ACT_OK;
 }
