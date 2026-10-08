@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 echo "========================================================"
-echo "🛡️ ARM64 10 節點純 UDP 壓測 (徹底繞過 IAP 限制版) 🛡️"
+echo "🛡️ ARM64 10-Node Pure UDP Stress Test (IAP Bypass Version) 🛡️"
 echo "========================================================"
 
 cat << 'SHOOTER' > incast_shooter_max.py
@@ -41,7 +41,7 @@ UDP_PORT = 5006
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.settimeout(0.5)
 latencies = []
-print("等待 3 秒讓風暴發酵...")
+print("Waiting 3 seconds for the storm to build up...")
 time.sleep(3)
 for i in range(1000):
     start = time.time()
@@ -55,7 +55,7 @@ with open(OUTPUT_FILE, 'w') as f:
     for lat in latencies: f.write(f"data: {lat:.6f}\n")
 LOGGER
 
-# 將 Node-0 的複雜指令全部封裝成腳本
+# Encapsulate complex commands for Node-0 into a script
 cat << 'NODE0' > run_node0.sh
 #!/bin/bash
 sudo apt-get update >/dev/null 2>&1 || true
@@ -72,35 +72,35 @@ if [ ! -z "$BPF_PID" ]; then
 fi
 NODE0
 
-# 將僚機的指令封裝成腳本
+# Encapsulate commands for shooter nodes into a script
 cat << 'SHOOTER_SH' > run_shooter.sh
 #!/bin/bash
 tmux kill-server 2>/dev/null || true
 tmux new-session -d -s shooter 'python3 ~/incast_shooter_max.py'
 SHOOTER_SH
 
-echo "🌐 傳送實體腳本至 10 台機器..."
+echo "🌐 Transferring scripts to 10 machines..."
 for i in {1..9}; do
     gcloud compute scp incast_shooter_max.py run_shooter.sh uav-arm-node-$i:~ --zone="asia-southeast1-b" --quiet
 done
 gcloud compute scp latency_logger.py uav-arm-node-1:~ --zone="asia-southeast1-b" --quiet
 gcloud compute scp echo_server.py run_node0.sh uav-arm-node-0:~ --zone="asia-southeast1-b" --quiet
 
-echo -e "\n🛡️ [1/3] 觸發 Node-0 執行 eBPF 防禦..."
-# 完美繞過 IAP：利用 nohup 完全切斷 I/O，讓腳本在背景執行，SSH 瞬間乾淨退出！
+echo -e "\n🛡️ [1/3] Triggering eBPF defense on Node-0..."
+# IAP Bypass: Use nohup to detach I/O and run in background, allowing SSH to exit cleanly!
 gcloud compute ssh uav-arm-node-0 --zone="asia-southeast1-b" --quiet --command="nohup bash ~/run_node0.sh </dev/null >/dev/null 2>&1 &"
-echo "⏳ 等待 5 秒讓 Node-0 準備防禦..."
+echo "⏳ Waiting 5 seconds for Node-0 to initialize defense..."
 sleep 5
 
-echo -e "\n🔥 [2/3] 觸發 9 台僚機風暴與 Node-1 測速..."
+echo -e "\n🔥 [2/3] Triggering 9-node Incast storm and Node-1 latency logger..."
 for i in {2..9}; do
     gcloud compute ssh uav-arm-node-$i --zone="asia-southeast1-b" --quiet --command="nohup bash ~/run_shooter.sh </dev/null >/dev/null 2>&1 &"
 done
 
-# Node-1 需要等待測速完成，因此不放背景
+# Node-1 needs to wait for latency logging to finish, so it runs in foreground
 gcloud compute ssh uav-arm-node-1 --zone="asia-southeast1-b" --quiet --command="nohup bash ~/run_shooter.sh </dev/null >/dev/null 2>&1 & python3 ~/latency_logger.py ~/exp_results_arm10_intercept.csv"
 
-echo -e "\n📥 [3/3] 下載測速結果..."
-gcloud compute scp uav-arm-node-1:~/exp_results_arm10_intercept.csv ./ --zone="asia-southeast1-b" --quiet || echo "⚠️ 無法抓取結果"
-echo "🎉 完美的 10 節點 ARM 極限壓測完成！"
+echo -e "\n📥 [3/3] Downloading latency results..."
+gcloud compute scp uav-arm-node-1:~/exp_results_arm10_intercept.csv ./ --zone="asia-southeast1-b" --quiet || echo "⚠️ Failed to fetch results"
+echo "🎉 10-Node ARM Extreme Stress Test Completed Successfully!"
 wc -l exp_results_arm10_intercept.csv || true
