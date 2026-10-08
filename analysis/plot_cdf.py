@@ -5,7 +5,7 @@ import re, os
 def load_latencies(filepath):
     latencies = []
     if not os.path.exists(filepath):
-        print(f"⚠️ 找不到檔案: {filepath}")
+        print(f"⚠️ File not found: {filepath}")
         return np.array([])
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
@@ -62,4 +62,4 @@ ax.annotate('Saturation Veto: Forced Release', xy=(overlap_x, overlap_y), xytext
 
 plt.tight_layout()
 fig.savefig('arm10_latency_cdf.pdf', format='pdf', bbox_inches='tight')
-print("✅ 圖表已生成: arm10_latency_cdf.pdf")
+print("✅ Plot generated: arm10_latency_cdf.pdf")
