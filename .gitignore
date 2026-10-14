@@ -1,0 +1,16 @@
+# 日誌與暫存檔
+*.log
+/tmp/
+ds.log
+
+# 避免上傳測試用的 PNG 圖表 (我們保留 PDF 供審查)
+analysis/*.png
+
+# C++/ROS 2 編譯產物
+ros2_workspace/build/
+ros2_workspace/install/
+ros2_workspace/log/
+
+# Python 快取
+__pycache__/
+*.pyc
