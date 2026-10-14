@@ -31,7 +31,7 @@ ip.tc("add-filter", "bpf", idx, ":1", fd=func.fd, name=func.name,
 
 # Stage 4: L'Hopital Limit & Q16.16 Fixed-Point Quantization (Eq. 18)
 rho_scaled = int(args.rho * 100)
-gamma_drop = min(max(args.rho, 0.01), 0.99)
+gamma_drop = min(max(1.0 - args.rho, 0.01), 0.99)
 
 if abs(args.xi) > XI_TH:
     k_evt = ((1.0 - gamma_drop) ** (-args.xi) - 1.0) / args.xi
